@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { 
@@ -21,7 +20,7 @@ import {
   serverTimestamp,
   limit,
   collectionGroup,
-  updateDoc // *** הוספת ייבוא חסר ***
+  updateDoc
 } from "firebase/firestore";
 import { 
   getStorage, 
@@ -29,9 +28,8 @@ import {
   uploadBytes, 
   getDownloadURL 
 } from "firebase/storage";
-// import KnowledgeBase from './product_knowledge_base.js'; // --- נמחק --- הייבוא גורם לשגיאה
 
-// --- הגדרות Firebase (זהות לכל הקבצים) ---
+// --- הגדרות Firebase ---
 const firebaseConfig = {
   apiKey: "AIzaSyDq0oVwS6zbEfsgrYBRkeBq80dDUKMedzo", 
   authDomain: "saban94-78949.firebaseapp.com", 
@@ -48,8 +46,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// --- *** הוטמע: product_knowledge_base.js *** ---
-// זה פותר את שגיאת הייבוא
+// --- בסיס ידע (קטלוג) מוטמע ---
 const placeholderImage = (text) => `https://placehold.co/100x100/e0e7ff/3730a3?text=${encodeURIComponent(text)}`;
 
 const KnowledgeBase = {
@@ -155,8 +152,6 @@ const KnowledgeBase = {
     return product.relatedProducts.map(relatedId => this.getById(relatedId)).filter(Boolean);
   }
 };
-// --- *** סוף קוד מוטמע *** ---
-
 
 // --- קומפוננטת שורש ---
 export default function App() {
@@ -168,17 +163,14 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // משתמש מחובר, נטען את הפרופיל שלו
         const profile = await loadCustomerProfile(user.uid);
         if (profile) {
           setUser(user);
           setCustomerProfile(profile);
-          // בדיקה אם הסיסמה היא ברירת מחדל
           if (profile.forcePasswordChange) {
             setIsDefaultPassword(true);
           }
         } else {
-          // משתמש מאומת אבל אין לו פרופיל לקוח
           console.error("Auth successful but customer profile not found.");
           signOut(auth);
         }
@@ -194,7 +186,6 @@ export default function App() {
   const handlePasswordUpdate = async (newPassword) => {
     try {
       await updatePassword(auth.currentUser, newPassword);
-      // עדכון הדגל ב-Firestore
       const userDocRef = doc(db, 'customers', auth.currentUser.uid);
       await updateDoc(userDocRef, { forcePasswordChange: false });
       setIsDefaultPassword(false);
@@ -205,40 +196,25 @@ export default function App() {
     }
   };
 
-  if (loading) {
-    return <FullScreenLoader text="טוען אפליקציה..." />;
-  }
-
-  if (!user) {
-    return <AuthScreen onLogin={(email) => {
-      // לוגיקה עתידית
-    }} />;
-  }
-
-  if (isDefaultPassword) {
-    return <ForcePasswordChangeScreen onUpdate={handlePasswordUpdate} />;
-  }
+  if (loading) return <FullScreenLoader text="טוען אפליקציה..." />;
+  if (!user) return <AuthScreen />;
+  if (isDefaultPassword) return <ForcePasswordChangeScreen onUpdate={handlePasswordUpdate} />;
 
   return <MainApp user={user} customerProfile={customerProfile} />;
 }
 
-// --- טעינת פרופיל לקוח ---
 async function loadCustomerProfile(uid) {
   try {
     const docRef = doc(db, "customers", uid);
     const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return { uid, ...docSnap.data() };
-    } else {
-      return null;
-    }
+    if (docSnap.exists()) return { uid, ...docSnap.data() };
+    return null;
   } catch (error) {
     console.error("Error loading customer profile:", error);
     return null;
   }
 }
 
-// --- מסך התחברות ---
 function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -251,7 +227,6 @@ function AuthScreen() {
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged יטפל בהמשך
     } catch (error) {
       setError("שם משתמש או סיסמה שגויים.");
       console.error(error);
@@ -266,37 +241,15 @@ function AuthScreen() {
         <h3 className="text-xl font-semibold text-center text-gray-700 mb-8">פורטל לקוחות</h3>
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              אימייל
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700">אימייל</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg" required />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              סיסמה
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700">סיסמה</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg" required />
           </div>
           {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
-          >
+          <button type="submit" disabled={loading} className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400">
             {loading ? "מתחבר..." : "כניסה"}
           </button>
         </form>
@@ -305,7 +258,6 @@ function AuthScreen() {
   );
 }
 
-// --- מסך אילוץ החלפת סיסמה ---
 function ForcePasswordChangeScreen({ onUpdate }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -313,15 +265,8 @@ function ForcePasswordChangeScreen({ onUpdate }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      setError("סיסמה חייבת להכיל לפחות 6 תווים.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("הסיסמאות אינן תואמות.");
-      return;
-    }
-    setError('');
+    if (newPassword.length < 6) { setError("סיסמה חייבת להכיל לפחות 6 תווים."); return; }
+    if (newPassword !== confirmPassword) { setError("הסיסמאות אינן תואמות."); return; }
     onUpdate(newPassword);
   };
 
@@ -329,85 +274,54 @@ function ForcePasswordChangeScreen({ onUpdate }) {
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md p-8 m-4 bg-white rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">הגדרת סיסמה חדשה</h2>
-        <p className="text-center text-gray-600 mb-6">זוהי כניסתך הראשונה. מטעמי אבטחה, עליך להגדיר סיסמה חדשה.</p>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700">סיסמה חדשה</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg" required />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">אימות סיסמה</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg" required />
           </div>
           {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-          <button
-            type="submit"
-            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            עדכן סיסמה
-          </button>
+          <button type="submit" className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700">עדכן סיסמה</button>
         </form>
       </div>
     </div>
   );
 }
 
-// --- האפליקציה הראשית (אחרי התחברות) ---
 function MainApp({ user, customerProfile }) {
-  const [page, setPage] = useState('chats'); // 'chats', 'knowledge', 'orders', 'profile'
-  const [currentRoom, setCurrentRoom] = useState(null); // { projectId, name, avatarUrl }
+  const [page, setPage] = useState('chats');
+  const [currentRoom, setCurrentRoom] = useState(null);
+
+  if (currentRoom) {
+    return <ChatRoomPage room={currentRoom} user={user} customerProfile={customerProfile} onBack={() => setCurrentRoom(null)} />;
+  }
 
   const renderPage = () => {
-    if (currentRoom) {
-      return <ChatRoomPage room={currentRoom} user={user} onBack={() => setCurrentRoom(null)} />;
-    }
     switch (page) {
-      case 'chats':
-        return <ChatListPage customerProfile={customerProfile} onEnterRoom={setCurrentRoom} />;
-      case 'knowledge':
-        return <KnowledgeBasePage />;
-      case 'orders':
-        return <OrderHistoryPage customerProfile={customerProfile} />;
-      case 'profile':
-        return <ProfilePage customerProfile={customerProfile} />;
-      default:
-        return <ChatListPage customerProfile={customerProfile} onEnterRoom={setCurrentRoom} />;
+      case 'chats': return <ChatListPage customerProfile={customerProfile} onEnterRoom={setCurrentRoom} />;
+      case 'knowledge': return <KnowledgeBasePage />;
+      case 'orders': return <OrderHistoryPage />;
+      case 'profile': return <ProfilePage customerProfile={customerProfile} />;
+      default: return <ChatListPage customerProfile={customerProfile} onEnterRoom={setCurrentRoom} />;
     }
   };
 
-  if (currentRoom) {
-    // במצב חדר צ'אט, אנו מחליפים את כל המסך
-    return <ChatRoomPage room={currentRoom} user={user} onBack={() => setCurrentRoom(null)} />;
-  }
-
   return (
     <div className="h-screen w-screen flex flex-col">
-      <div className="flex-1 overflow-y-auto pb-20">
-        {renderPage()}
-      </div>
+      <div className="flex-1 overflow-y-auto pb-20">{renderPage()}</div>
       <BottomNav currentPage={page} setPage={setPage} />
     </div>
   );
 }
 
-// --- ניווט תחתון ---
 function BottomNav({ currentPage, setPage }) {
   const navItems = [
     { id: 'chats', name: 'שיחות', icon: 'MessageSquare' },
     { id: 'knowledge', name: 'בסיס ידע', icon: 'BookOpen' },
-    { id: 'orders', name: 'הזמנות עבר', icon: 'Archive' },
+    { id: 'orders', name: 'הזמנות', icon: 'Archive' },
     { id: 'profile', name: 'פרופיל', icon: 'User' },
   ];
 
@@ -415,15 +329,7 @@ function BottomNav({ currentPage, setPage }) {
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-10">
       <div className="flex justify-around max-w-lg mx-auto px-4 py-2">
         {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setPage(item.id)}
-            className={`flex flex-col items-center justify-center p-2 rounded-lg w-20 transition-all duration-200 ${
-              currentPage === item.id 
-                ? 'text-blue-600 scale-105' 
-                : 'text-gray-500 hover:text-blue-500'
-            }`}
-          >
+          <button key={item.id} onClick={() => setPage(item.id)} className={`flex flex-col items-center p-2 rounded-lg w-20 transition-all ${currentPage === item.id ? 'text-blue-600 scale-105' : 'text-gray-500'}`}>
             <Icon name={item.icon} className="w-6 h-6 mb-1" />
             <span className="text-xs font-medium">{item.name}</span>
           </button>
@@ -433,539 +339,165 @@ function BottomNav({ currentPage, setPage }) {
   );
 }
 
-// --- עמוד רשימת השיחות (פרויקטים) ---
 function ChatListPage({ customerProfile, onEnterRoom }) {
   const [projectsWithData, setProjectsWithData] = useState([]);
   
-  // האזנה להודעות אחרונות עבור כל פרויקט
   useEffect(() => {
     if (!customerProfile.projects || customerProfile.projects.length === 0) {
-      setProjectsWithData(customerProfile.projects || []);
+      setProjectsWithData([]);
       return;
     }
-
     const projectIds = customerProfile.projects.map(p => p.projectId);
+    const q = query(collection(db, "messages"), where("roomId", "in", projectIds), orderBy("createdAt", "desc"), limit(50));
     
-    // שאילתה למציאת ההודעה האחרונה *בכל* החדרים הרלוונטיים
-    const q = query(
-      collection(db, "messages"), 
-      where("roomId", "in", projectIds), 
-      orderBy("createdAt", "desc")
-      , limit(50) 
-    );
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lastMessages = new Map(); // Map<roomId, message>
-      
+      const lastMessages = new Map();
       snapshot.docs.forEach(doc => {
         const msg = doc.data();
-        if (!lastMessages.has(msg.roomId)) {
-          lastMessages.set(msg.roomId, msg);
-        }
+        if (!lastMessages.has(msg.roomId)) lastMessages.set(msg.roomId, msg);
       });
       
-      // מיפוי הפרויקטים עם ההודעה האחרונה
-      const enhancedProjects = customerProfile.projects.map(project => {
-        const lastMsg = lastMessages.get(project.projectId);
-        return {
-          ...project,
-          lastMessage: lastMsg?.text || "אין הודעות",
-          lastMessageTimestamp: lastMsg?.createdAt?.toDate()
-        };
-      });
+      const enhancedProjects = customerProfile.projects.map(project => ({
+        ...project,
+        lastMessage: lastMessages.get(project.projectId)?.text || "אין הודעות",
+        lastMessageTimestamp: lastMessages.get(project.projectId)?.createdAt?.toDate()
+      }));
       
-      // מיון: פרויקט עם ההודעה החדשה ביותר ראשון
       enhancedProjects.sort((a, b) => (b.lastMessageTimestamp || 0) - (a.lastMessageTimestamp || 0));
-      
       setProjectsWithData(enhancedProjects);
-
-    }, (err) => console.error("Error listening to last messages:", err));
-    
+    });
     return () => unsubscribe();
-
   }, [customerProfile.projects]);
   
   return (
     <div className="flex flex-col">
-      <header className="sticky top-0 bg-white z-10 shadow-sm">
-        <div className="max-w-lg mx-auto p-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-blue-600">השיחות שלי</h1>
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-            <img src={customerProfile.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerProfile.name)}&background=random`} alt="Profile" className="w-full h-full object-cover" />
-          </div>
-        </div>
-      </header>
-      <main className="flex-1 p-2">
-        {projectsWithData.length === 0 && (
-          <p className="text-center text-gray-500 mt-10">אין פרויקטים המשויכים לחשבון זה.</p>
-        )}
-        <div className="space-y-2">
-          {projectsWithData.map((project) => (
-            <div
-              key={project.projectId}
-              onClick={() => onEnterRoom(project)}
-              className="flex items-center p-3 bg-white rounded-lg shadow-sm hover:bg-gray-50 transition-all cursor-pointer"
-            >
-              <img src={project.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(project.name)}&background=random`} alt={project.name} className="w-12 h-12 rounded-full object-cover" />
-              <div className="flex-1 mr-4">
-                <div className="flex justify-between items-baseline">
-                  <h3 className="font-semibold text-gray-800">{project.name}</h3>
-                  <span className="text-xs text-gray-400">
-                    {project.lastMessageTimestamp ? project.lastMessageTimestamp.toLocaleDateString() : ''}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 truncate">{project.lastMessage}</p>
-              </div>
+      <header className="sticky top-0 bg-white z-10 shadow-sm p-4"><h1 className="text-2xl font-bold text-blue-600">השיחות שלי</h1></header>
+      <main className="flex-1 p-2 space-y-2">
+        {projectsWithData.length === 0 && <p className="text-center text-gray-500 mt-10">אין פרויקטים משויכים.</p>}
+        {projectsWithData.map(project => (
+          <div key={project.projectId} onClick={() => onEnterRoom(project)} className="flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer">
+            <img src={project.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(project.name)}`} className="w-12 h-12 rounded-full object-cover" />
+            <div className="flex-1 mr-4">
+              <div className="flex justify-between"><h3 className="font-semibold">{project.name}</h3><span className="text-xs text-gray-400">{project.lastMessageTimestamp?.toLocaleDateString()}</span></div>
+              <p className="text-sm text-gray-500 truncate">{project.lastMessage}</p>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </main>
     </div>
   );
 }
 
-// --- עמוד חדר הצ'אט (פיד הפרויקט) ---
-function ChatRoomPage({ room, user, onBack }) {
+function ChatRoomPage({ room, user, customerProfile, onBack }) {
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
-  
   const customerUid = user.uid;
 
-  // האזנה להודעות
   useEffect(() => {
-    setLoading(true);
-    const q = query(
-      collection(db, "messages"),
-      where("roomId", "==", room.projectId),
-      orderBy("createdAt", "asc")
-    );
-    
+    const q = query(collection(db, "messages"), where("roomId", "==", room.projectId), orderBy("createdAt", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const filteredMessages = [];
+      const filtered = [];
       snapshot.forEach(doc => {
         const msg = { id: doc.id, ...doc.data() };
-        
-        // --- לוגיקת הסינון הקריטית ---
-        const isMyMessage = msg.senderId === customerUid;
-        const isReplyToMe = msg.replyTo && msg.replyTo.ownerId === customerUid;
-        
-        if (isMyMessage || isReplyToMe) {
-          filteredMessages.push(msg);
-        }
+        if (msg.senderId === customerUid || (msg.replyTo && msg.replyTo.ownerId === customerUid)) filtered.push(msg);
       });
-      setMessages(filteredMessages);
-      setLoading(false);
-    }, (err) => {
-      console.error("Error fetching messages:", err);
-      setLoading(false);
+      setMessages(filtered);
     });
-    
     return () => unsubscribe();
   }, [room.projectId, customerUid]);
 
-  // גלילה אוטומטית
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
 
   const handleSendText = async () => {
-    if (text.trim() === '' || isSending) return;
-    
-    setIsSending(true);
+    if (!text.trim()) return;
     const messageData = {
       roomId: room.projectId,
       senderId: user.uid,
-      senderName: user.displayName || "לקוח", // נצטרך לטעון את השם מהפרופיל
+      senderName: customerProfile.name || "לקוח",
       type: "TEXT",
       text: text.trim(),
       createdAt: serverTimestamp(),
-      replyTo: null // הודעה רגילה מהלקוח
+      replyTo: null 
     };
-    
-    try {
-      await addDoc(collection(db, "messages"), messageData);
-      setText('');
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-    setIsSending(false);
+    await addDoc(collection(db, "messages"), messageData);
+    setText('');
   };
-  
-  // --- TODO: פונקציות לשליחת מדיה ---
-  const handleSendOrder = () => alert("פתיחת קטלוג... (טרם הוטמע)");
-  const handlePasteOrder = () => alert("פתיחת הדבקת טקסט... (טרם הוטמע)");
-  const handleSendMedia = () => alert("פתיחת מצלמה/גלריה... (טרם הוטמע)");
-  const handleSendLocation = () => alert("שליחת מיקום... (טרם הוטמע)");
-  const handleSendAudio = () => alert("הקלטת שמע... (טרם הוטמע)");
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-gray-100">
       <header className="sticky top-0 bg-white z-10 shadow-sm flex items-center p-3">
-        <button onClick={onBack} className="p-2 text-gray-600 hover:text-blue-600">
-          <Icon name="ArrowRight" />
-        </button>
-        <img src={room.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=random`} alt={room.name} className="w-10 h-10 rounded-full object-cover mr-2" />
-        <div>
-          <h2 className="font-semibold text-gray-800">{room.name}</h2>
-          <p className="text-xs text-green-500">מחובר</p>
-        </div>
+        <button onClick={onBack} className="p-2"><Icon name="ArrowRight" /></button>
+        <h2 className="font-semibold mr-2">{room.name}</h2>
       </header>
-
-      {/* גוף הצ'אט */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {loading && <FullScreenLoader text="טוען שיחה..." />}
-        {!loading && messages.length === 0 && (
-          <p className="text-center text-gray-500">אין עדיין הודעות בשיחה זו.</p>
-        )}
-        {messages.map(msg => (
-          <MessageBubble key={msg.id} msg={msg} isMine={msg.senderId === customerUid} />
-        ))}
+        {messages.map(msg => <MessageBubble key={msg.id} msg={msg} isMine={msg.senderId === customerUid} />)}
         <div ref={messagesEndRef} />
       </div>
-
-      {/* סרגל כלים תחתון */}
-      <ChatInputBar 
-        text={text} 
-        setText={setText} 
-        onSend={handleSendText}
-        onSendOrder={handleSendOrder}
-        onPasteOrder={handlePasteOrder}
-        onSendMedia={handleSendMedia}
-        onSendLocation={handleSendLocation}
-        onSendAudio={handleSendAudio}
-        isSending={isSending}
-      />
+      <div className="bg-white p-3 border-t flex items-center">
+        <input type="text" value={text} onChange={e => setText(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleSendText()} placeholder="כתוב הודעה..." className="flex-1 px-4 py-2 border rounded-full" />
+        <button onClick={handleSendText} className="mr-2 p-2 bg-blue-600 text-white rounded-full"><Icon name="Send" className="w-5 h-5" /></button>
+      </div>
     </div>
   );
 }
 
-// --- בועת הודעה ---
 function MessageBubble({ msg, isMine }) {
-  const alignClass = isMine ? 'justify-end' : 'justify-start';
-  const bubbleClass = isMine 
-    ? 'bg-blue-600 text-white rounded-br-none' 
-    : 'bg-white text-gray-800 rounded-bl-none shadow-sm';
-  
-  const renderContent = () => {
-    switch(msg.type) {
-      case 'ORDER':
-        // TODO: רנדור יפה של הזמנה
-        return <p className="font-semibold">[הזמנה] {msg.orderPayload?.items?.length || 0} פריטים</p>;
-      case 'IMAGE':
-        return <img src={msg.mediaUrl} alt="תמונה" className="rounded-lg max-w-xs" />;
-      // TODO: הוספת סוגי מדיה נוספים
-      default:
-        return <p>{msg.text}</p>;
-    }
-  };
-  
   return (
-    <div className={`flex ${alignClass} w-full`}>
-      <div className={`max-w-xs md:max-w-md ${bubbleClass} p-3 rounded-xl`}>
-        {msg.replyTo && (
-          <div className="border-r-2 border-blue-300 pr-2 opacity-80 mb-2">
-            <p className="text-xs font-semibold">{msg.replyTo.senderName || 'הודעה קודמת'}</p>
-            <p className="text-xs truncate">{msg.replyTo.text || '...'}</p>
-          </div>
-        )}
-        {renderContent()}
-        <span className="text-xs opacity-70 float-left mt-1 ml-2">
-          {msg.createdAt?.toDate().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-        </span>
+    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-xs p-3 rounded-xl ${isMine ? 'bg-blue-600 text-white' : 'bg-white text-gray-800 shadow-sm'}`}>
+        <p>{msg.text}</p>
+        <span className="text-xs opacity-70 block mt-1 text-left">{msg.createdAt?.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
       </div>
     </div>
   );
 }
 
-// --- סרגל כלים תחתון של הצ'אט ---
-function ChatInputBar({ text, setText, onSend, onSendOrder, onPasteOrder, onSendMedia, onSendLocation, onSendAudio, isSending }) {
-  const [showMenu, setShowMenu] = useState(false);
-
-  const menuItems = [
-    { name: "הזמנה מקטלוג", icon: "ShoppingCart", action: onSendOrder },
-    { name: "הדבק הזמנה", icon: "Clipboard", action: onPasteOrder },
-    { name: "תמונה / וידאו", icon: "Camera", action: onSendMedia },
-    { name: "מסמך", icon: "FileText", action: onSendMedia },
-    { name: "מיקום", icon: "MapPin", action: onSendLocation },
-  ];
-
-  return (
-    <div className="bg-white p-3 border-t border-gray-200 shadow-inner relative">
-      {/* תפריט ה- '+' */}
-      {showMenu && (
-        <div className="absolute bottom-20 right-3 w-48 bg-white rounded-lg shadow-xl border p-2 z-20">
-          {menuItems.map(item => (
-            <button key={item.name} onClick={item.action} className="flex items-center w-full text-right p-2 rounded-lg hover:bg-gray-100 text-gray-700">
-              <Icon name={item.icon} className="w-5 h-5 ml-3" />
-              <span>{item.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      
-      <div className="flex items-center space-x-2 space-x-reverse">
-        <button onClick={() => setShowMenu(prev => !prev)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full">
-          <Icon name={showMenu ? "X" : "Plus"} className="w-6 h-6" />
-        </button>
-        
-        <input 
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && onSend()}
-          placeholder="כתוב הודעה..."
-          className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300"
-        />
-        
-        {text ? (
-          <button onClick={onSend} disabled={isSending} className="p-3 bg-blue-600 text-white rounded-full shadow-lg transition-all hover:bg-blue-700">
-            <Icon name="Send" className="w-6 h-6" />
-          </button>
-        ) : (
-          <button onClick={onSendAudio} className="p-3 bg-blue-600 text-white rounded-full shadow-lg transition-all hover:bg-blue-700">
-            <Icon name="Mic" className="w-6 h-6" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// --- עמוד בסיס הידע (קטלוג) ---
 function KnowledgeBasePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  
-  const searchResults = useMemo(() => {
-    return KnowledgeBase.search(searchTerm);
-  }, [searchTerm]);
+  const searchResults = useMemo(() => KnowledgeBase.search(searchTerm), [searchTerm]);
 
-  if (selectedProduct) {
-    return (
-      <ProductDetailPage 
-        product={selectedProduct} 
-        onBack={() => setSelectedProduct(null)} 
-        onSelectProduct={setSelectedProduct} // אפשרות ללחוץ על מוצר משלים
-      />
-    );
-  }
+  if (selectedProduct) return <ProductDetailPage product={selectedProduct} onBack={() => setSelectedProduct(null)} />;
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">בסיס ידע</h1>
-      <div className="relative">
-        <input
-          type="search"
-          placeholder="חפש מוצר, מקט או מפרט (2 אותיות ומעלה)..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <Icon name="Search" className="absolute top-3.5 right-4 w-5 h-5 text-gray-400" />
-      </div>
-      
-      <div className="mt-6 space-y-3">
-        {searchResults.length > 0 && searchTerm.length > 1 && (
-          searchResults.map(product => (
-            <div 
-              key={product.id}
-              onClick={() => setSelectedProduct(product)}
-              className="flex items-center p-3 bg-white rounded-lg shadow-sm hover:bg-gray-50 transition-all cursor-pointer"
-            >
-              <img src={product.image} alt={product.name} className="w-16 h-16 rounded-lg object-cover bg-gray-100" />
-              <div className="mr-4">
-                <h3 className="font-semibold text-blue-600">{product.name}</h3>
-                <p className="text-sm text-gray-600">{product.spec}</p>
-                <p className="text-xs text-gray-400">מק"ט: {product.sku}</p>
-              </div>
-            </div>
-          ))
-        )}
-        {searchResults.length === 0 && searchTerm.length > 1 && (
-          <p className="text-center text-gray-500">לא נמצאו מוצרים תואמים.</p>
-        )}
+      <h1 className="text-2xl font-bold mb-4">בסיס ידע</h1>
+      <input type="search" placeholder="חפש מוצר..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full px-4 py-3 border rounded-lg" />
+      <div className="mt-4 space-y-3">
+        {searchResults.map(p => (
+          <div key={p.id} onClick={() => setSelectedProduct(p)} className="flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer">
+            <img src={p.image} className="w-12 h-12 rounded object-cover" />
+            <div className="mr-4"><h3 className="font-semibold text-blue-600">{p.name}</h3><p className="text-xs text-gray-500">{p.sku}</p></div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// --- עמוד פרטי מוצר (בתוך בסיס הידע) ---
-function ProductDetailPage({ product, onBack, onSelectProduct }) {
-  const [calcInput, setCalcInput] = useState('');
-  const [calcResult, setCalcResult] = useState('');
-  const relatedProducts = KnowledgeBase.getRelatedProducts(product.id);
-  
-  const handleCalculate = () => {
-    if (product.calculator && calcInput) {
-      const result = product.calculator.calculate(parseFloat(calcInput));
-      setCalcResult(result);
-    }
-  };
-  
-  return (
-    <div className="pb-4">
-      <header className="sticky top-0 bg-white z-10 shadow-sm flex items-center p-3">
-        <button onClick={onBack} className="p-2 text-gray-600 hover:text-blue-600">
-          <Icon name="ArrowRight" />
-        </button>
-        <h2 className="font-semibold text-gray-800 text-lg">{product.name}</h2>
-      </header>
-      
-      <div className="p-4">
-        {/* פרטים בסיסיים */}
-        <div className="flex mb-4">
-          <img src={product.image} alt={product.name} className="w-24 h-24 rounded-lg object-cover bg-gray-100" />
-          <div className="mr-4">
-            <p className="text-sm text-gray-500">מק"ט: {product.sku}</p>
-            <p className="text-sm text-gray-500">קטגוריה: {product.category}</p>
-            <p className="text-sm text-gray-700 font-medium mt-2">{product.spec}</p>
-          </div>
-        </div>
-        <p className="text-gray-700 mb-4">{product.description}</p>
-        
-        {/* מידע מקצועי */}
-        {product.proInfo && (
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
-            <h4 className="text-lg font-semibold text-blue-700 mb-2">מידע למקצוען</h4>
-            <p className="text-sm text-gray-700">
-              <strong>שיטת יישום:</strong> {product.proInfo.application}
-            </p>
-            <p className="text-sm text-gray-700 mt-1">
-              <strong>זמן ייבוש:</strong> {product.proInfo.dryingTime}
-            </p>
-          </div>
-        )}
-        
-        {/* מחשבון */}
-        {product.calculator && (
-          <div className="bg-gray-50 border p-4 rounded-lg mb-4">
-            <h4 className="text-lg font-semibold text-gray-700 mb-2">מחשבון כמויות</h4>
-            <div className="flex space-x-2 space-x-reverse">
-              <input 
-                type="number"
-                value={calcInput}
-                onChange={(e) => setCalcInput(e.target.value)}
-                placeholder={`הזן כמות ב-${product.calculator.unit}`}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <button onClick={handleCalculate} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">
-                חשב
-              </button>
-            </div>
-            {calcResult && (
-              <p className="text-blue-700 font-medium mt-3">{calcResult}</p>
-            )}
-          </div>
-        )}
-        
-        {/* מוצרים משלימים */}
-        {relatedProducts.length > 0 && (
-          <div>
-            <h4 className="text-lg font-semibold text-gray-700 mb-2">מוצרים משלימים</h4>
-            <div className="grid grid-cols-2 gap-3">
-              {relatedProducts.map(relProd => (
-                <div 
-                  key={relProd.id}
-                  onClick={() => onSelectProduct(relProd)}
-                  className="p-3 bg-white rounded-lg shadow-sm border hover:border-blue-500 cursor-pointer"
-                >
-                  <img src={relProd.image} alt={relProd.name} className="w-full h-20 rounded-md object-cover bg-gray-100 mb-2" />
-                  <p className="text-sm font-medium text-blue-600">{relProd.name}</p>
-                  <p className="text-xs text-gray-500">{relProd.sku}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <button className="w-full mt-6 py-3 bg-green-500 text-white text-lg font-bold rounded-lg shadow-lg hover:bg-green-600">
-          הוסף להזמנה בצ'אט
-        </button>
-
-      </div>
-    </div>
-  );
-}
-
-// --- עמוד היסטוריית הזמנות ---
-function OrderHistoryPage({ customerProfile }) {
-  // TODO: לבנות שאילתה שאוספת את *כל* ההודעות מסוג "ORDER"
-  // מכל החדרים (פרויקטים) של הלקוח.
+function ProductDetailPage({ product, onBack }) {
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">היסטוריית הזמנות</h1>
-      <p className="text-center text-gray-500 mt-10">
-        כאן יוצגו כל ההזמנות שביצעת מכל הפרויקטים. (טרם הוטמע)
-      </p>
+      <button onClick={onBack} className="mb-4 text-blue-600">חזור</button>
+      <h1 className="text-2xl font-bold">{product.name}</h1>
+      <p className="mt-2 text-gray-700">{product.description}</p>
     </div>
   );
 }
 
-// --- עמוד פרופיל ---
-function ProfilePage({ customerProfile }) {
-  return (
-    <div className="p-4">
-      <div className="flex items-center mb-6">
-        <img src={customerProfile.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerProfile.name)}&background=random`} alt="Profile" className="w-20 h-20 rounded-full object-cover" />
-        <div className="mr-4">
-          <h1 className="text-2xl font-bold text-gray-800">{customerProfile.name}</h1>
-          <p className="text-gray-500">{customerProfile.email}</p>
-        </div>
-      </div>
-      <button 
-        onClick={() => signOut(auth)}
-        className="w-full text-left p-4 bg-white rounded-lg shadow-sm text-red-600 font-semibold flex items-center"
-      >
-        <Icon name="LogOut" className="w-5 h-5 ml-3" />
-        <span>התנתק</span>
-      </button>
-    </div>
-  );
-}
+function OrderHistoryPage() { return <div className="p-4"><h1 className="text-2xl font-bold">היסטוריית הזמנות</h1><p>בקרוב...</p></div>; }
+function FullScreenLoader({ text }) { return <div className="flex items-center justify-center h-screen">{text}</div>; }
 
-// --- כלי עזר ---
-function FullScreenLoader({ text }) {
-  return (
-    <div className="flex items-center justify-center h-screen w-screen bg-white">
-      <div className="flex flex-col items-center">
-        <Icon name="Loader" className="w-8 h-8 text-blue-600 animate-spin" />
-        <p className="text-gray-600 mt-4">{text || "טוען..."}</p>
-      </div>
-    </div>
-  );
-}
-
-// --- קומפוננטת אייקונים (מ-Feather) ---
-const Icon = ({ name, className = "" }) => {
-  // פונקציית עזר פשוטה לרינדור אייקון
-  // במערכת אמיתית נשתמש ב-lucide-react
+const Icon = ({ name, className }) => {
   const icons = {
-    MessageSquare: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
-    BookOpen: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
-    Archive: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>`,
-    User: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`,
-    LogOut: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>`,
-    ArrowRight: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`,
-    Send: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`,
-    Mic: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`,
-    Plus: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
-    X: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-    ShoppingCart: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`,
-    Clipboard: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
-    Camera: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`,
-    FileText: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`,
-    MapPin: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
-    Search: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
-    Loader: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>`,
+    MessageSquare: `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>`,
+    BookOpen: `<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>`,
+    Archive: `<polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line>`,
+    User: `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>`,
+    LogOut: `<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>`,
+    ArrowRight: `<line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>`,
+    Send: `<line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>`
   };
-  
-  return (
-    <span 
-      className={className}
-      dangerouslySetInnerHTML={{ __html: icons[name] || icons['X'] }}
-    />
-  );
+  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: icons[name] }} />;
 };
