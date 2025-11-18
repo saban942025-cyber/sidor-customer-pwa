@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* סגנונות גלובליים */
 body {
   font-family: 'Inter', sans-serif;
+  @apply bg-gray-100;
+  overscroll-behavior: none;
+}
